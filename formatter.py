@@ -41,8 +41,8 @@ def main():
         "folder",
         type=str,
         nargs="?",
-        default="output_terasdakwah",
-        help="Folder berisi file CSV per-playlist (default: output_terasdakwah)",
+        default="result/output_terasdakwah",
+        help="Folder berisi file CSV per-playlist (default: result/output_terasdakwah)",
     )
     parser.add_argument(
         "--output",
@@ -94,7 +94,7 @@ def main():
 
     # ── Tulis file output (CSV proper 2 kolom) ──────────
     folder_name = os.path.basename(args.folder.rstrip("/\\"))
-    out_file    = args.output or f"grouped_{folder_name}.csv"
+    out_file    = args.output or os.path.join("result", f"grouped_{folder_name}.csv")
 
     import csv as csv_module
 

@@ -222,10 +222,10 @@ def main():
     sep()
     print(f"\n[3/3] Klasifikasi niche & export CSV...\n")
 
-    # Buat folder output
+    # Buat folder output di dalam result/
     handle    = re.search(r"@([\w\-]+)", args.channel_url)
     ch_handle = handle.group(1).lower() if handle else "channel"
-    out_dir   = f"output_{ch_handle}"
+    out_dir   = os.path.join("result", f"output_{ch_handle}")
     os.makedirs(out_dir, exist_ok=True)
 
     combined_rows = []
@@ -270,7 +270,7 @@ def main():
 
     # Mode combined: satu CSV gabungan
     if args.combined:
-        combined_path = f"youtube_links_{ch_handle}_all_playlists.csv"
+        combined_path = os.path.join("result", f"youtube_links_{ch_handle}_all_playlists.csv")
         with open(combined_path, mode="w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(
                 f, fieldnames=["youtube_url", "playlist", "niche", "sub_niche"]
