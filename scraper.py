@@ -146,6 +146,34 @@ def get_videos_from_playlist(playlist: dict) -> list[dict]:
             })
     return videos
 
+
+def get_all_channel_videos(channel_url: str) -> list[dict]:
+    """Ambil semua video dari tab /videos channel."""
+    videos_url = channel_url.rstrip("/") + "/videos"
+    print(f"  Mengambil semua video dari: {videos_url}")
+
+    with yt_dlp.YoutubeDL(YDL_FLAT) as ydl:
+        info = ydl.extract_info(videos_url, download=False)
+
+    if not info:
+        return []
+
+    videos = []
+    for entry in (info.get("entries") or []):
+        if not entry:
+            continue
+        vid_id = entry.get("id")
+        title  = entry.get("title", "")
+        if vid_id:
+            videos.append({
+                "id":          vid_id,
+                "title":       title,
+                "description": entry.get("description") or "",
+                "playlist_id": None,
+                "playlist":    title,   # judul video sebagai nama playlist
+            })
+    return videos
+
 # ─────────────────────────────────────────────
 # MAIN
 # ─────────────────────────────────────────────
@@ -213,6 +241,23 @@ def main():
                 "playlist": pl,
                 "videos":   unique,
             })
+
+    # ── 2b. Scrape video yang tidak ada di playlist ─
+    print(f"\n  Mencari video di luar playlist (tab /videos)...")
+    all_channel_videos = get_all_channel_videos(args.channel_url)
+    orphan_videos = [v for v in all_channel_videos if v["id"] not in seen_ids]
+
+    if orphan_videos:
+        print(f"  Ditemukan {len(orphan_videos)} video di luar playlist (judul dijadikan nama playlist)")
+        for v in orphan_videos:
+            seen_ids.add(v["id"])
+            # Setiap video tanpa playlist → group sendiri dengan judul sebagai playlist
+            pl_results.append({
+                "playlist": {"id": v["id"], "title": v["title"], "url": normalize_url(v["id"])},
+                "videos":   [v],
+            })
+    else:
+        print(f"  Semua video sudah masuk dalam playlist.")
 
     total_videos = sum(len(r["videos"]) for r in pl_results)
     sep()
