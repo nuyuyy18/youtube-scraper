@@ -33,6 +33,9 @@ def read_all_csvs(folder: str) -> list[dict]:
     return rows
 
 
+FIELDNAMES = ["niche", "sub_niche", "pembahasan", "title", "youtube_url", "playlist"]
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Format hasil scraping menjadi file teks terstruktur per playlist"

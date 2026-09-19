@@ -59,6 +59,30 @@ TAXONOMY = {
 # HELPERS
 # ─────────────────────────────────────────────
 
+# Pola atribusi pembicara yang akan dihapus dari judul untuk menghasilkan pembahasan
+_ATTR_PATTERN = re.compile(
+    r"(\s*[|\-]{1,2}\s*|\.{2,}\s*)"
+    r"(Habib|Ust\.?|Ustadz|Ustazah|Gus|Syekh|Sheikh|Buya|KH\.?|Dr\.?|Prof\.?)"
+    r"[^|\-\[\(]*$",
+    re.IGNORECASE,
+)
+_EPISODE_PATTERN = re.compile(
+    r"(\s*(Ep(isode)?\.?\s*\d+|eps?\.?\s*\d+|part\s*\d+|vol\.?\s*\d+))",
+    re.IGNORECASE,
+)
+
+
+def extract_pembahasan(title: str) -> str:
+    """Ekstrak inti topik dari judul dengan membuang atribusi pembicara & nomor episode."""
+    if not title:
+        return ""
+    topic = _ATTR_PATTERN.sub("", title).strip()
+    topic = _EPISODE_PATTERN.sub("", topic).strip()
+    # Buang trailing separator
+    topic = re.sub(r"[\|\-]+$", "", topic).strip()
+    return topic or title
+
+
 def classify_niche(title: str, description: str) -> tuple[str, str]:
     text = ((title or "") + " " + (description or "")).lower()
     best_niche, best_sub, max_score = "Uncategorized", "General", 0
@@ -76,7 +100,7 @@ def normalize_url(video_id: str) -> str:
 
 def safe_filename(text: str, max_len: int = 60) -> str:
     """Buat nama file yang aman dari judul playlist."""
-    cleaned = re.sub(r'[\\/*?:"<>|]', "", text)
+    cleaned = re.sub(r'[\\/*?"<>|]', "", text)
     cleaned = re.sub(r'\s+', "_", cleaned.strip())
     return cleaned[:max_len]
 
@@ -288,38 +312,39 @@ def main():
             description = video.get("description") or ""
             url         = normalize_url(video["id"])
             niche, sub  = classify_niche(title, description)
+            pembahasan  = extract_pembahasan(title)
 
             title_disp = title[:55] + "…" if len(title) > 55 else title
             print(f"    [{niche:<17}] {title_disp}")
 
             row = {
-                "youtube_url": url,
-                "playlist":    pl["title"],
                 "niche":       niche,
                 "sub_niche":   sub,
+                "pembahasan":  pembahasan,
+                "title":       title,
+                "youtube_url": url,
+                "playlist":    pl["title"],
             }
             pl_rows.append(row)
             combined_rows.append(row)
 
         # Simpan CSV per playlist
+        FIELDNAMES = ["niche", "sub_niche", "pembahasan", "title", "youtube_url", "playlist"]
         if not args.combined:
             fname = safe_filename(pl["title"]) + ".csv"
             fpath = os.path.join(out_dir, fname)
             with open(fpath, mode="w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(
-                    f, fieldnames=["youtube_url", "playlist", "niche", "sub_niche"]
-                )
+                writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
                 writer.writeheader()
                 writer.writerows(pl_rows)
             print(f"    → Disimpan: {fpath}  ({len(pl_rows)} baris)")
 
     # Mode combined: satu CSV gabungan
+    FIELDNAMES = ["niche", "sub_niche", "pembahasan", "title", "youtube_url", "playlist"]
     if args.combined:
         combined_path = os.path.join("result", f"youtube_links_{ch_handle}_all_playlists.csv")
         with open(combined_path, mode="w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(
-                f, fieldnames=["youtube_url", "playlist", "niche", "sub_niche"]
-            )
+            writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
             writer.writeheader()
             writer.writerows(combined_rows)
 
