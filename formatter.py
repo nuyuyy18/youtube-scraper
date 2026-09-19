@@ -69,7 +69,7 @@ def main():
 
     # ── Kelompokkan per playlist ─────────────────────────
     # Gunakan OrderedDict agar urutan tetap sesuai file CSV
-    groups: OrderedDict[str, list[str]] = OrderedDict()
+    groups: OrderedDict[str, list[dict]] = OrderedDict()
 
     for row in all_rows:
         playlist = (row.get("playlist") or "").strip()
@@ -83,35 +83,39 @@ def main():
         # Jika tidak ada nama playlist, gunakan niche/sub_niche sebagai grup
         if not playlist:
             playlist = f"{niche} — {sub}" if niche != "Uncategorized" else "Lain-lain"
+            row["playlist"] = playlist
 
         if playlist not in groups:
             groups[playlist] = []
 
         # Hindari duplikat URL
-        if url not in groups[playlist]:
-            groups[playlist].append(url)
+        if not any(r.get("youtube_url") == url for r in groups[playlist]):
+            groups[playlist].append(row)
 
     total_groups = len(groups)
     total_links  = sum(len(v) for v in groups.values())
     print(f"[*] Ditemukan {total_groups} playlist, {total_links} link total")
 
-    # ── Tulis file output (CSV proper 2 kolom) ──────────
+    # ── Tulis file output (semua kolom) ──────────────────
     folder_name = os.path.basename(args.folder.rstrip("/\\"))
     out_file    = args.output or os.path.join("result", f"grouped_{folder_name}.csv")
+
+    # Tentukan fieldnames: pakai FIELDNAMES baku jika tersedia, fallback ke kolom data
+    sample_keys = list(all_rows[0].keys()) if all_rows else []
+    out_fields  = FIELDNAMES if all(f in sample_keys for f in FIELDNAMES) else sample_keys
 
     import csv as csv_module
 
     with open(out_file, mode="w", newline="", encoding="utf-8-sig") as f:
         writer = csv_module.writer(f)
-        # Header row
-        writer.writerow(["playlist", "youtube_url"])
-        for i, (playlist, urls) in enumerate(groups.items()):
-            # Tiap link mendapat baris sendiri dengan nama playlistnya
-            for url in urls:
-                writer.writerow([playlist, url])
-            # 1 baris kosong pemisah antar playlist (kecuali terakhir)
+        # Header
+        writer.writerow(out_fields)
+        for i, (playlist, rows) in enumerate(groups.items()):
+            for row in rows:
+                writer.writerow([row.get(field, "") for field in out_fields])
+            # Baris kosong pemisah antar playlist (kecuali terakhir)
             if i < total_groups - 1:
-                writer.writerow(["", ""])
+                writer.writerow([""] * len(out_fields))
 
     print(f"[✓] Selesai! Disimpan ke: {out_file}")
     print(f"    {total_groups} playlist  |  {total_links} link")
